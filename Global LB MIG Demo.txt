@@ -1,0 +1,113 @@
+Setup Network
+-------------
+gcloud compute networks create demo-net --subnet-mode auto
+
+gcloud compute firewall-rules create demo-net-allow-http \
+    --network demo-net \
+    --allow tcp:80
+
+Setup Template
+--------------
+gcloud compute instance-templates create demo-instance-template \
+    --machine-type e2-standard-4 \
+    --image-family demo-instance-image-family \
+    --network demo-net \
+    --metadata startup-script='apt update && apt -y install apache2'
+
+Create MIGs
+-----------
+
+gcloud compute instance-groups managed create demo-us-east1-pool \
+    --region us-east1 \
+    --template demo-instance-template \
+    --size 1
+
+gcloud compute instance-groups managed set-autoscaling demo-us-east1-pool \
+    --region us-east1 \
+    --min-num-replicas 1 \
+    --max-num-replicas 5 \
+    --scale-based-on-load-balancing \
+    --target-load-balancing-utilization .8
+
+gcloud compute instance-groups managed create demo-europe-west1-pool \
+    --region europe-west1 \
+    --template fort-template \
+    --size 1
+
+gcloud compute instance-groups managed set-autoscaling demo-europe-west1-pool \
+    --region europe-west1 \
+    --min-num-replicas 1 \
+    --max-num-replicas 5 \
+    --scale-based-on-load-balancing \
+    --target-load-balancing-utilization .8
+
+gcloud compute instance-groups managed create demo-asia-east1-pool \
+    --region asia-east1 \
+    --template fort-template \
+    --size 1
+
+gcloud compute instance-groups managed set-autoscaling demo-asia-east1-pool \
+    --region asia-east1 \
+    --min-num-replicas 1 \
+    --max-num-replicas 5 \
+    --scale-based-on-load-balancing \
+    --target-load-balancing-utilization .8
+
+Setup Load Balancer
+-------------------
+
+gcloud compute health-checks create http http-basic-check
+
+gcloud compute backend-services create demo-backend-service \
+    --protocol HTTP \
+    --health-checks http-basic-check \
+    --global
+
+gcloud compute backend-services add-backend demo-backend-service \
+    --balancing-mode RATE \
+    --max-rate-per-instance 100 \
+    --instance-group demo-us-east1-pool \
+    --instance-group-region us-east1 \
+    --global
+
+gcloud compute backend-services add-backend demo-backend-service \
+    --balancing-mode RATE \
+    --max-rate-per-instance 100 \
+    --instance-group demo-europe-west1-pool \
+    --instance-group-region europe-west1 \
+    --global
+
+gcloud compute backend-services add-backend demo-backend-service \
+    --balancing-mode RATE \
+    --max-rate-per-instance 100 \
+    --instance-group demo-asia-east1-pool \
+    --instance-group-region asia-east1 \
+    --global
+
+gcloud compute url-maps create demo-balancer \
+    --default-service demo-backend-service
+
+gcloud compute target-http-proxies create demo-http-proxy \
+    --url-map demo-balancer
+
+gcloud compute addresses create demo-ip \
+    --ip-version IPV4 \
+    --global
+
+gcloud compute addresses create demo-ipv6 \
+    --ip-version IPV6 \
+    --global
+
+gcloud compute addresses list
+
+gcloud compute forwarding-rules create demo-http-rule \
+    --global \
+    --target-http-proxy demo-http-proxy \
+    --ports 80 \
+    --address {LOAD_BALANCER_IP_ADDRESS}
+
+gcloud compute forwarding-rules create demo-http-ipv6-rule \
+    --global \
+    --target-http-proxy demo-http-proxy \
+    --ports 80 \
+    --address {LOAD_BALANCER_IPV6_ADDRESS}
