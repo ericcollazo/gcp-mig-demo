@@ -6,13 +6,22 @@ gcloud compute firewall-rules create demo-net-allow-http \
     --network demo-net \
     --allow tcp:80
 
+gcloud compute firewall-rules create demo-net-allow-ping \
+    --network demo-net \
+    --allow icmp
+
+gcloud compute firewall-rules create demo-net-allow-ssh \
+    --network demo-net \
+    --allow tcp:22
+
 Setup Template
 --------------
 gcloud compute instance-templates create demo-instance-template \
     --machine-type e2-standard-4 \
-    --image-family demo-instance-image-family \
+    --image-family ubuntu-1604-lts \
+    --image-project ubuntu-os-cloud \
     --network demo-net \
-    --metadata startup-script='apt update && apt -y install apache2'
+    --metadata startup-script='apt update && apt -y install apache2 && apt -y install stress'
 
 Create MIGs
 -----------
